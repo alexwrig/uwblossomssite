@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UW Cherry Blossoms: Peak Bloom Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Nunito:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --mauve:      #3d1a2e;
+      --blush:      #f2b8c6;
+      --cream:      #fdf6f0;
+      --dusty-rose: #d4728a;
+      --pale-pink:  #fce4ec;
+      --mid-pink:   #f48fb1;
+      --glass-bg:   rgba(253, 246, 240, 0.62);
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--cream);
+      color: var(--mauve);
+      font-family: 'Nunito', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ===================== HERO ===================== */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(160deg, #fce4ec 0%, #f8bbd0 35%, #f06292 70%, #ce93d8 100%);
+      overflow: hidden;
+    }
+
+    /* grain overlay */
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.09'/%3E%3C/svg%3E");
+      pointer-events: none;
+      opacity: 0.45;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .hero-eyebrow {
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--dusty-rose);
+      margin-bottom: 1rem;
+    }
+
+    .hero-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(3.2rem, 11vw, 8rem);
+      font-weight: 300;
+      color: var(--mauve);
+      letter-spacing: 0.02em;
+      line-height: 0.95;
+      margin-bottom: 1rem;
+    }
+
+    .hero-subtitle {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: clamp(1rem, 2.5vw, 1.5rem);
+      color: var(--dusty-rose);
+      letter-spacing: 0.18em;
+    }
+
+    .hero-scroll {
+      position: absolute;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--dusty-rose);
+    }
+
+    .scroll-line {
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(to bottom, var(--dusty-rose), transparent);
+      animation: scroll-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes scroll-pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* ===================== PETALS ===================== */
+    .petal {
+      position: absolute;
+      top: -80px;
+      pointer-events: none;
+      z-index: 1;
+      animation: petal-fall linear infinite;
+      will-change: transform;
+    }
+
+    .petal svg {
+      display: block;
+    }
+
+    @keyframes petal-fall {
+      0% {
+        transform: translateY(-80px) translateX(0px) rotate(0deg);
+        opacity: 0;
+      }
+      8%  { opacity: 1; }
+      88% { opacity: 0.6; }
+      100% {
+        transform: translateY(105vh) translateX(var(--drift, 0px)) rotate(var(--spin, 540deg));
+        opacity: 0;
+      }
+    }
+
+    /* ===================== MAIN ===================== */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem 3rem;
+    }
+
+    section {
+      margin-bottom: 6rem;
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .section-tag {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--dusty-rose);
+      margin-bottom: 0.6rem;
+      text-align: center;
+    }
+
+    .section-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2rem, 4.5vw, 3rem);
+      font-weight: 300;
+      color: var(--mauve);
+      text-align: center;
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.02em;
+    }
+
+    /* ===================== GLASS CARD ===================== */
+    .glass {
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(242, 184, 198, 0.45);
+      border-radius: 24px;
+    }
+
+    /* ===================== PREDICTION ===================== */
+    .prediction-wrap {
+      position: relative;
+      border-radius: 28px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 50%, #f3a8c2 100%);
+      padding: 3rem 2.5rem 2.5rem;
+    }
+
+    .prediction-wrap::before {
+      content: '✿';
+      position: absolute;
+      right: -1.5rem;
+      bottom: -3rem;
+      font-size: 18rem;
+      line-height: 1;
+      color: rgba(255, 255, 255, 0.18);
+      pointer-events: none;
+      font-family: serif;
+    }
+
+    .prediction-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+      position: relative;
+    }
+
+    @media (max-width: 560px) {
+      .prediction-grid { grid-template-columns: 1fr; }
+    }
+
+    .pred-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .pred-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--dusty-rose);
+    }
+
+    .pred-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 300;
+      color: var(--mauve);
+      line-height: 1.1;
+    }
+
+    .pred-note {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.1rem;
+      color: var(--dusty-rose);
+      margin-top: 0.1rem;
+    }
+
+    /* gauge */
+    .gauge-wrap {
+      position: relative;
+      margin: 1.8rem 0 1.2rem;
+    }
+
+    .gauge-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.7rem;
+    }
+
+    .gauge-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--dusty-rose);
+    }
+
+    .gauge-pct {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      font-weight: 400;
+      color: var(--mauve);
+    }
+
+    .gauge-track {
+      height: 10px;
+      background: rgba(212, 114, 138, 0.18);
+      border-radius: 999px;
+      overflow: visible;
+      position: relative;
+    }
+
+    .gauge-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #f2b8c6, var(--dusty-rose));
+      width: 0%;
+      transition: width 1.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+    }
+
+    .gauge-blossom {
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.3rem;
+      line-height: 1;
+      filter: drop-shadow(0 1px 4px rgba(212,114,138,0.55));
+      animation: blossom-bob 2s ease-in-out infinite;
+    }
+
+    @keyframes blossom-bob {
+      0%, 100% { transform: translateY(-50%) scale(1); }
+      50% { transform: translateY(-58%) scale(1.12); }
+    }
+
+    .disclaimer {
+      font-size: 0.78rem;
+      font-style: italic;
+      color: rgba(61, 26, 46, 0.55);
+      line-height: 1.7;
+      margin-top: 1.6rem;
+      position: relative;
+    }
+
+    /* ===================== TIMELINE ===================== */
+    .tl-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+    }
+
+    .tl-card {
+      background: rgba(253,246,240,0.88);
+      border: 1px solid rgba(242,184,198,0.42);
+      border-radius: 18px;
+      padding: 1.4rem 1rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.22s, box-shadow 0.22s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tl-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 32px rgba(212,114,138,0.2);
+    }
+
+    .tl-card.predict {
+      background: linear-gradient(140deg, #fce4ec, #f8bbd0);
+      border-color: rgba(212,114,138,0.65);
+      box-shadow: 0 4px 20px rgba(212,114,138,0.15);
+    }
+
+    .tl-card-year {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.7rem;
+      font-weight: 300;
+      color: var(--mauve);
+      line-height: 1;
+      margin-bottom: 0.15rem;
+    }
+
+    .tl-card.predict .tl-card-year { font-weight: 500; }
+
+    .tl-card-tag {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--dusty-rose);
+      margin-bottom: 0.4rem;
+    }
+
+    .tl-card-blossom {
+      font-size: 1.5rem;
+      line-height: 1;
+      margin: 0.35rem 0;
+      display: block;
+      transition: transform 0.2s;
+    }
+
+    .tl-card:hover .tl-card-blossom { transform: scale(1.28) rotate(-10deg); }
+
+    .tl-card-date {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--mauve);
+      letter-spacing: 0.04em;
+    }
+
+    .tl-card-bar-track {
+      height: 3px;
+      background: rgba(212,114,138,0.15);
+      border-radius: 999px;
+      margin-top: 0.8rem;
+      overflow: hidden;
+    }
+
+    .tl-card-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blush), var(--dusty-rose));
+      border-radius: 999px;
+      width: 0%;
+      transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .tl-card-note {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: var(--mauve);
+      color: var(--cream);
+      padding: 0.65rem 0.8rem;
+      font-size: 0.68rem;
+      line-height: 1.45;
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      border-radius: 0 0 18px 18px;
+      pointer-events: none;
+      text-align: left;
+    }
+
+    .tl-card:hover .tl-card-note,
+    .tl-card.open .tl-card-note { transform: translateY(0); }
+
+    /* ===================== VIDEO ===================== */
+    .video-section { text-align: center; }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: rgba(61, 26, 46, 0.07);
+      border: 1px solid rgba(212, 114, 138, 0.3);
+      padding: 0.3rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--mauve);
+      margin-bottom: 1.8rem;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #e53935;
+      flex-shrink: 0;
+      animation: live-pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes live-pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(229,57,53,0.5); }
+      50% { opacity: 0.7; box-shadow: 0 0 0 5px rgba(229,57,53,0); }
+    }
+
+    .garland-wrap {
+      position: relative;
+      display: inline-block;
+      padding: 52px;
+    }
+
+    .video-frame {
+      position: relative;
+      width: min(800px, 88vw);
+      aspect-ratio: 16 / 9;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 24px 70px rgba(61, 26, 46, 0.22);
+    }
+
+    .video-frame iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .g-flower {
+      position: absolute;
+      font-size: 1.45rem;
+      color: var(--dusty-rose);
+      pointer-events: none;
+      line-height: 1;
+      filter: drop-shadow(0 2px 6px rgba(212,114,138,0.45));
+      animation: flower-sway ease-in-out infinite alternate;
+    }
+
+    @keyframes flower-sway {
+      0% { transform: var(--base-rot) scale(1); }
+      100% { transform: var(--base-rot) scale(1.18); }
+    }
+
+    /* ===================== HISTORY ===================== */
+    .history-lead {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.1rem, 2vw, 1.3rem);
+      font-weight: 300;
+      font-style: italic;
+      line-height: 1.85;
+      color: rgba(61, 26, 46, 0.8);
+      text-align: center;
+      max-width: 720px;
+      margin: 0 auto 3rem;
+    }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 640px) {
+      .history-grid { grid-template-columns: 1fr; }
+    }
+
+    .history-card {
+      background: rgba(253, 246, 240, 0.85);
+      border: 1px solid rgba(242, 184, 198, 0.5);
+      border-radius: 20px;
+      padding: 2rem 1.8rem;
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+
+    .history-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 36px rgba(212, 114, 138, 0.15);
+    }
+
+    .history-card.wide {
+      grid-column: 1 / -1;
+    }
+
+    .history-card-year {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--dusty-rose);
+      margin-bottom: 0.5rem;
+    }
+
+    .history-card-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--mauve);
+      margin-bottom: 0.75rem;
+      line-height: 1.2;
+    }
+
+    .history-card-text {
+      font-size: 0.88rem;
+      line-height: 1.8;
+      color: rgba(61, 26, 46, 0.72);
+    }
+
+    .history-card-text + .history-card-text {
+      margin-top: 0.75rem;
+    }
+
+    /* ===================== FOOTER ===================== */
+    footer {
+      background: linear-gradient(to right, #fce4ec, #f8bbd0, #fce4ec);
+      border-top: 1px solid rgba(242, 184, 198, 0.5);
+      text-align: center;
+      padding: 2.5rem 1.5rem;
+      font-size: 0.82rem;
+      color: rgba(61, 26, 46, 0.55);
+      letter-spacing: 0.04em;
+      line-height: 1.8;
+    }
+
+    footer strong {
+      color: var(--dusty-rose);
+    }
+
+    /* ===================== RESPONSIVE ===================== */
+    @media (max-width: 700px) {
+      main { padding: 3rem 1rem 2rem; }
+      .prediction-wrap { padding: 2rem 1.5rem; }
+      .garland-wrap { padding: 38px; }
+    }
+
+    /* ===================== CURSOR TRAIL ===================== */
+    .trail-petal {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      font-size: 1rem;
+      line-height: 1;
+      animation: trail-fall 1.4s ease-in forwards;
+      will-change: transform, opacity;
+    }
+
+    @keyframes trail-fall {
+      0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 0.9; }
+      100% { transform: translateY(80px) translateX(var(--tx, 0px)) rotate(var(--tr, 180deg)) scale(0.3); opacity: 0; }
+    }
+
+    /* ===================== CLICK BURST ===================== */
+    .burst-petal {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      font-size: 1.2rem;
+      animation: burst-fly 1s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+    }
+
+    @keyframes burst-fly {
+      0%   { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+      100% { transform: translate(var(--bx), var(--by)) scale(0.2) rotate(var(--br, 360deg)); opacity: 0; }
+    }
+
+    /* ===================== BLOOM STAGE ===================== */
+    .stages-row {
+      display: flex;
+      gap: 0;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(242, 184, 198, 0.5);
+      margin-bottom: 2rem;
+    }
+
+    .stage {
+      flex: 1;
+      padding: 1.4rem 0.8rem 1.2rem;
+      text-align: center;
+      background: rgba(253, 246, 240, 0.7);
+      border-right: 1px solid rgba(242, 184, 198, 0.35);
+      transition: background 0.3s, transform 0.3s;
+      cursor: default;
+      position: relative;
+    }
+
+    .stage:last-child { border-right: none; }
+
+    .stage.active {
+      background: linear-gradient(160deg, #fce4ec, #f8bbd0);
+      transform: scaleY(1.04);
+      z-index: 1;
+      box-shadow: 0 4px 20px rgba(212,114,138,0.2);
+    }
+
+    .stage-icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
+
+    .stage-name {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(61, 26, 46, 0.5);
+    }
+
+    .stage.active .stage-name { color: var(--dusty-rose); }
+
+    .stage-label {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.85rem;
+      font-style: italic;
+      color: rgba(61,26,46,0.45);
+      margin-top: 0.2rem;
+    }
+
+    .stage.active .stage-label { color: var(--mauve); }
+
+    .stage-pip {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--blush);
+      margin: 0.5rem auto 0;
+    }
+
+    .stage.active .stage-pip {
+      background: var(--dusty-rose);
+      box-shadow: 0 0 0 3px rgba(212,114,138,0.25);
+    }
+
+    @media (max-width: 600px) {
+      .stages-row { flex-wrap: wrap; }
+      .stage { flex: 1 1 33%; border-bottom: 1px solid rgba(242,184,198,0.35); }
+    }
+
+    /* ===================== TEMP SLIDER ===================== */
+    .temp-slider-wrap {
+      margin-top: 1.8rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(212,114,138,0.2);
+      position: relative;
+    }
+
+    .temp-slider-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.9rem;
+    }
+
+    .temp-slider-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--dusty-rose);
+    }
+
+    .temp-slider-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+      color: var(--mauve);
+    }
+
+    input[type=range].temp-range {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #6ab0f5, #f2b8c6, #f2b8c6, #e57050);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range].temp-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--cream);
+      border: 2px solid var(--dusty-rose);
+      box-shadow: 0 2px 8px rgba(212,114,138,0.35);
+      cursor: grab;
+      transition: transform 0.15s;
+    }
+
+    input[type=range].temp-range::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.2); }
+
+    .temp-result {
+      margin-top: 0.9rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.05rem;
+      color: rgba(61,26,46,0.75);
+      min-height: 1.6em;
+      transition: opacity 0.3s;
+    }
+
+    /* ===================== FACTS TICKER ===================== */
+    .facts-ticker {
+      background: rgba(253,246,240,0.85);
+      border: 1px solid rgba(242,184,198,0.45);
+      border-radius: 16px;
+      padding: 1.4rem 2rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      min-height: 5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .fact-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: clamp(1rem, 2.2vw, 1.25rem);
+      color: var(--mauve);
+      line-height: 1.6;
+      transition: opacity 0.5s, transform 0.5s;
+      max-width: 700px;
+    }
+
+    .fact-text.fade-out { opacity: 0; transform: translateY(-8px); }
+    .fact-text.fade-in  { opacity: 0; transform: translateY( 8px); }
+
+    .fact-nav {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.8rem;
+    }
+
+    .fact-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--blush);
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+      border: none;
+      padding: 0;
+    }
+
+    .fact-dot.active { background: var(--dusty-rose); transform: scale(1.3); }
+
+    /* ===================== SHAKE BUTTON ===================== */
+    .shake-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 3rem;
+    }
+
+    .shake-btn {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      font-style: italic;
+      color: var(--mauve);
+      background: rgba(253,246,240,0.85);
+      border: 1.5px solid rgba(212,114,138,0.55);
+      border-radius: 999px;
+      padding: 0.7rem 2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 16px rgba(212,114,138,0.12);
+    }
+
+    .shake-btn:hover {
+      background: #fce4ec;
+      box-shadow: 0 8px 28px rgba(212,114,138,0.22);
+      transform: translateY(-2px);
+    }
+
+    .shake-btn:active { transform: scale(0.97); }
+
+    .shake-btn .tree-icon { font-size: 1.4rem; display: inline-block; transition: transform 0.1s; }
+    .shake-btn.shaking .tree-icon { animation: tree-shake 0.5s ease-in-out; }
+
+    @keyframes tree-shake {
+      0%,100% { transform: rotate(0deg); }
+      15%  { transform: rotate(-8deg); }
+      30%  { transform: rotate(7deg); }
+      45%  { transform: rotate(-6deg); }
+      60%  { transform: rotate(5deg); }
+      75%  { transform: rotate(-3deg); }
+      90%  { transform: rotate(2deg); }
+    }
+
+    /* ===================== INTERACTIVE TREE ===================== */
+    .tree-section { text-align: center; }
+
+    .tree-instruction {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.1rem;
+      color: rgba(61,26,46,0.5);
+      margin-bottom: 1.5rem;
+      transition: opacity 0.8s;
+    }
+
+    .tree-stage {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      background: linear-gradient(180deg, #e8d5f0 0%, #f5e0ea 30%, #fce4ec 65%, #f0e8dc 100%);
+      border-radius: 28px;
+      padding: 3rem 2rem 0;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      border: 1px solid rgba(242,184,198,0.35);
+    }
+
+    #cherry-tree {
+      max-width: 700px;
+      width: 100%;
+      overflow: visible;
+      display: block;
+    }
+
+    #cherry-tree.tree-shaking {
+      animation: tree-quake 0.58s ease-in-out;
+      transform-origin: 50% 100%;
+    }
+
+    @keyframes tree-quake {
+      0%,100% { transform: rotate(0deg); }
+      10% { transform: rotate(-3.5deg); }
+      25% { transform: rotate(3.2deg); }
+      40% { transform: rotate(-2.8deg); }
+      55% { transform: rotate(2.2deg); }
+      70% { transform: rotate(-1.6deg); }
+      85% { transform: rotate(1deg); }
+    }
+
+    .rain-petal {
+      position: fixed;
+      pointer-events: none;
+      z-index: 8888;
+      line-height: 1;
+      animation: rain-fall linear forwards;
+      will-change: transform, opacity;
+    }
+
+    @keyframes rain-fall {
+      0%   { transform: translateY(var(--ry-start)) translateX(0) rotate(0deg) scale(var(--rscale)); opacity: 0.9; }
+      12%  { opacity: 1; }
+      80%  { opacity: 0.75; }
+      100% { transform: translateY(110vh) translateX(var(--rx-drift)) rotate(var(--r-spin)) scale(calc(var(--rscale)*0.4)); opacity: 0; }
+    }
+
+    .tree-click-count {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--dusty-rose);
+      margin-top: 1.2rem;
+      min-height: 1.5em;
+    }
+
+    /* ===================== PETAL CATCH GAME ===================== */
+    .catch-score {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 10;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      color: var(--mauve);
+      background: rgba(253,246,240,0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(242,184,198,0.5);
+      border-radius: 999px;
+      padding: 0.3rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: transform 0.15s;
+    }
+
+    .catch-score.pop { animation: score-pop 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+
+    @keyframes score-pop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    .catch-hint {
+      position: absolute;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(61,26,46,0.55);
+      white-space: nowrap;
+      animation: hint-fade 4s ease forwards;
+    }
+
+    @keyframes hint-fade {
+      0%,60% { opacity: 1; }
+      100%   { opacity: 0; }
+    }
+
+    .catchable { cursor: pointer; }
+    .catchable:hover { filter: brightness(1.3) drop-shadow(0 0 6px rgba(212,114,138,0.8)); }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================ HERO -->
+<header class="hero" id="hero">
+  <div class="hero-content">
+    <span class="hero-eyebrow">University of Washington</span>
+    <h1 class="hero-title">UW Cherry<br>Blossoms</h1>
+    <p class="hero-subtitle">Quad &nbsp;·&nbsp; Seattle, Washington</p>
+  </div>
+  <div class="catch-score" id="catch-score">✿ <span id="catch-count">0</span></div>
+  <div class="catch-hint">Click the petals ↑</div>
+  <div class="hero-scroll">
+    <div class="scroll-line"></div>
+    Scroll
+  </div>
+</header>
+
+<!-- ============================================================ MAIN -->
+<main>
+
+  <!-- ── PREDICTION ── -->
+  <section id="sec-prediction">
+    <span class="section-tag">2026 Forecast</span>
+    <h2 class="section-heading">Peak Bloom Prediction</h2>
+    <div class="prediction-wrap glass">
+      <div class="prediction-grid">
+        <div class="pred-block">
+          <span class="pred-label">Predicted Peak</span>
+          <div class="pred-value" id="pred-date">—</div>
+        </div>
+        <div class="pred-block">
+          <span class="pred-label">Countdown</span>
+          <div class="pred-value" id="pred-countdown">—</div>
+          <div class="pred-note" id="pred-note"></div>
+        </div>
+      </div>
+
+      <div class="gauge-wrap">
+        <div class="gauge-head">
+          <span class="gauge-title">Bloom Probability</span>
+          <span class="gauge-pct" id="gauge-pct-label">—</span>
+        </div>
+        <div class="gauge-track">
+          <div class="gauge-fill" id="gauge-fill">
+            <span class="gauge-blossom">✿</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloom stage bar -->
+      <div class="stages-row" id="stages-row" style="margin-top:1.8rem;">
+        <div class="stage" data-stage="0">
+          <div class="stage-icon">🌑</div>
+          <div class="stage-name">Dormant</div>
+          <div class="stage-label">Dec – Feb</div>
+          <div class="stage-pip"></div>
+        </div>
+        <div class="stage" data-stage="1">
+          <div class="stage-icon">🌱</div>
+          <div class="stage-name">Budding</div>
+          <div class="stage-label">Early March</div>
+          <div class="stage-pip"></div>
+        </div>
+        <div class="stage" data-stage="2">
+          <div class="stage-icon">🌸</div>
+          <div class="stage-name">Early Bloom</div>
+          <div class="stage-label">Mar 10 – 15</div>
+          <div class="stage-pip"></div>
+        </div>
+        <div class="stage" data-stage="3">
+          <div class="stage-icon">🌺</div>
+          <div class="stage-name">Peak Bloom</div>
+          <div class="stage-label">Mar 16 – 22</div>
+          <div class="stage-pip"></div>
+        </div>
+        <div class="stage" data-stage="4">
+          <div class="stage-icon">🌬️</div>
+          <div class="stage-name">Petal Fall</div>
+          <div class="stage-label">Late March</div>
+          <div class="stage-pip"></div>
+        </div>
+      </div>
+
+      <!-- Temperature slider -->
+      <div class="temp-slider-wrap">
+        <div class="temp-slider-head">
+          <span class="temp-slider-label">Temperature Departure Simulator</span>
+          <span class="temp-slider-value" id="temp-display">± 0 °F</span>
+        </div>
+        <input type="range" class="temp-range" id="temp-range" min="-5" max="5" step="0.5" value="0">
+        <div class="temp-result" id="temp-result">Drag the slider to see how temperature shifts the predicted peak date.</div>
+      </div>
+
+      <p class="disclaimer">
+        Prediction based on 10-year historical average of UW Quad Yoshino cherry trees.
+        Actual bloom varies with temperature and precipitation.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── TIMELINE ── -->
+  <section id="sec-timeline">
+    <span class="section-tag">Historical Record</span>
+    <h2 class="section-heading">Bloom Timeline</h2>
+    <div class="glass" style="padding: 2rem 1.5rem;">
+      <div class="tl-grid" id="tl-grid">
+        <!-- injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TREE ── -->
+  <section id="sec-tree" class="tree-section">
+    <span class="section-tag">Interactive</span>
+    <h2 class="section-heading">The Cherry Tree</h2>
+    <p class="tree-instruction" id="tree-instruction">Click the tree to release the blossoms</p>
+    <div class="tree-stage" id="tree-stage">
+      <svg id="cherry-tree" viewBox="0 0 700 520" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="blossom-glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="1.1" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <radialGradient id="ground-shadow" cx="50%" cy="30%" r="50%">
+            <stop offset="0%" stop-color="#3d1a2e" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="#3d1a2e" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- Ground shadow -->
+        <ellipse cx="350" cy="510" rx="180" ry="12" fill="url(#ground-shadow)"/>
+
+        <!-- === TRUNK === -->
+        <!-- Main trunk body - widest at base, tapers up -->
+        <path d="M350 508 C346 488 342 462 345 438 C348 414 344 392 346 372 C348 352 346 342 347 332"
+              stroke="#3d1e0e" stroke-width="42" fill="none" stroke-linecap="round"/>
+        <path d="M350 508 C347 488 344 462 347 438 C350 414 346 392 348 372 C350 352 347 342 348 332"
+              stroke="#5a2d12" stroke-width="34" fill="none" stroke-linecap="round"/>
+        <path d="M350 508 C348 490 346 466 348 442 C350 418 347 396 349 376"
+              stroke="#6b3820" stroke-width="26" fill="none" stroke-linecap="round" opacity="0.5"/>
+
+        <!-- Trunk detail - bark highlights -->
+        <path d="M348 480 C345 468 344 455 346 442" stroke="#7a4828" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.4"/>
+        <path d="M352 455 C354 442 353 430 351 418" stroke="#7a4828" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.3"/>
+
+        <!-- === PRIMARY BRANCHES === -->
+        <!-- Far left - nearly horizontal, droops slightly -->
+        <path d="M347 390 C315 378 272 362 228 346 C186 332 145 318 102 306 C68 297 35 288 8 280"
+              stroke="#4a2210" stroke-width="18" fill="none" stroke-linecap="round"/>
+        <path d="M347 390 C316 378 274 362 230 346 C188 332 148 318 105 306 C71 297 38 288 11 280"
+              stroke="#6b3820" stroke-width="12" fill="none" stroke-linecap="round" opacity="0.6"/>
+
+        <!-- Mid left - angles upward -->
+        <path d="M347 375 C318 358 282 336 245 312 C211 290 178 268 145 246 C118 228 93 212 68 198"
+              stroke="#52260f" stroke-width="15" fill="none" stroke-linecap="round"/>
+        <path d="M347 375 C319 358 284 336 247 312 C213 290 180 268 147 246 C120 228 95 212 70 198"
+              stroke="#7a4828" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.5"/>
+
+        <!-- Upper left - steeper angle -->
+        <path d="M347 362 C323 342 295 316 265 289 C238 264 210 241 183 218 C162 200 143 183 122 168"
+              stroke="#5e2c14" stroke-width="13" fill="none" stroke-linecap="round"/>
+
+        <!-- Center left up -->
+        <path d="M348 358 C342 335 340 310 340 284 C340 260 342 237 344 214 C346 192 347 172 348 152"
+              stroke="#5e2c14" stroke-width="12" fill="none" stroke-linecap="round"/>
+
+        <!-- True center top -->
+        <path d="M350 355 C349 330 350 303 350 276 C350 250 350 226 351 200 C351 178 351 158 351 136"
+              stroke="#6b3820" stroke-width="11" fill="none" stroke-linecap="round"/>
+
+        <!-- Upper right -->
+        <path d="M353 362 C377 342 405 316 435 289 C462 264 490 241 517 218 C538 200 557 183 578 168"
+              stroke="#5e2c14" stroke-width="13" fill="none" stroke-linecap="round"/>
+
+        <!-- Mid right -->
+        <path d="M353 375 C382 358 418 336 455 312 C489 290 522 268 555 246 C582 228 607 212 632 198"
+              stroke="#52260f" stroke-width="15" fill="none" stroke-linecap="round"/>
+        <path d="M353 375 C382 358 420 336 457 312 C491 290 524 268 557 246 C584 228 609 212 634 198"
+              stroke="#7a4828" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.5"/>
+
+        <!-- Far right - nearly horizontal, droops -->
+        <path d="M353 390 C385 378 428 362 472 346 C514 332 555 318 598 306 C632 297 665 288 692 280"
+              stroke="#4a2210" stroke-width="18" fill="none" stroke-linecap="round"/>
+        <path d="M353 390 C386 378 429 362 473 346 C515 332 556 318 599 306 C633 297 666 288 693 280"
+              stroke="#6b3820" stroke-width="12" fill="none" stroke-linecap="round" opacity="0.6"/>
+
+        <!-- === SECONDARY BRANCHES === -->
+        <!-- From far left (8,280) -->
+        <path d="M8 280 C-8 265 -18 250 -25 240" stroke="#7a4828" stroke-width="8" fill="none" stroke-linecap="round"/>
+        <path d="M60 296 C45 278 34 263 26 250" stroke="#7a4828" stroke-width="7" fill="none" stroke-linecap="round"/>
+        <path d="M105 306 C90 290 80 275 72 262" stroke="#8b5535" stroke-width="7" fill="none" stroke-linecap="round"/>
+
+        <!-- From mid left (68,198) -->
+        <path d="M68 198 C48 181 30 167 12 158" stroke="#8b5535" stroke-width="7" fill="none" stroke-linecap="round"/>
+        <path d="M110 222 C94 205 82 190 74 176" stroke="#8b5535" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M145 246 C130 228 120 213 114 198" stroke="#9a6242" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+        <!-- From upper left (122,168) -->
+        <path d="M122 168 C105 150 90 136 76 125" stroke="#9a6242" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M155 192 C140 174 130 158 124 144" stroke="#9a6242" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+        <!-- From center left (348,152) -->
+        <path d="M344 214 C330 196 320 180 313 166" stroke="#9a6242" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M344 214 C358 196 368 180 375 166" stroke="#9a6242" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M348 172 C337 154 328 140 322 126" stroke="#a57050" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M348 172 C359 154 368 140 374 126" stroke="#a57050" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+        <!-- From top center (351,136) -->
+        <path d="M351 200 C337 182 326 167 318 154" stroke="#9a6242" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M351 200 C365 182 376 167 384 154" stroke="#9a6242" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M351 158 C340 140 332 126 327 112" stroke="#a57050" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M351 158 C362 140 370 126 375 112" stroke="#a57050" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M351 125 C344 108 340 94 337 82" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M351 125 C358 108 362 94 365 82" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+        <!-- From upper right (578,168) -->
+        <path d="M578 168 C595 150 610 136 624 125" stroke="#9a6242" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M545 192 C560 174 570 158 576 144" stroke="#9a6242" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+        <!-- From mid right (632,198) -->
+        <path d="M632 198 C652 181 670 167 688 158" stroke="#8b5535" stroke-width="7" fill="none" stroke-linecap="round"/>
+        <path d="M590 222 C606 205 618 190 626 176" stroke="#8b5535" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M555 246 C570 228 580 213 586 198" stroke="#9a6242" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+        <!-- From far right (692,280) -->
+        <path d="M692 280 C708 265 718 250 725 240" stroke="#7a4828" stroke-width="8" fill="none" stroke-linecap="round"/>
+        <path d="M640 296 C655 278 666 263 674 250" stroke="#7a4828" stroke-width="7" fill="none" stroke-linecap="round"/>
+        <path d="M595 306 C610 290 620 275 628 262" stroke="#8b5535" stroke-width="7" fill="none" stroke-linecap="round"/>
+
+        <!-- === TERTIARY TWIGS === -->
+        <path d="M-25 240 C-34 228 -40 218 -44 210" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M26 250 C16 238 8 226 2 216" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M72 262 C62 250 55 238 50 227" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M12 158 C0 145 -8 133 -12 122" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M74 176 C62 163 55 150 50 138" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M76 125 C65 112 58 100 54 88" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M313 166 C304 150 298 136 295 122" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M375 166 C384 150 390 136 393 122" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M318 154 C308 138 302 124 299 110" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M384 154 C394 138 400 124 403 110" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M624 125 C635 112 642 100 646 88" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M688 158 C700 145 708 133 712 122" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M674 250 C684 238 692 226 698 216" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M628 262 C638 250 645 238 650 227" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M725 240 C734 228 740 218 744 210" stroke="#b07d5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+        <!-- Blossoms populated by JS -->
+        <g id="tree-blossoms"></g>
+      </svg>
+    </div>
+    <div class="tree-click-count" id="tree-click-count"></div>
+  </section>
+
+  <!-- ── VIDEO ── -->
+  <section id="sec-video" class="video-section">
+    <span class="section-tag">Streaming Now</span>
+    <h2 class="section-heading">Live Quad Camera</h2>
+    <div style="display:flex; justify-content:center; margin-bottom:0.5rem;">
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        Live
+      </div>
+    </div>
+    <div style="display:flex; justify-content:center;">
+      <div class="garland-wrap" id="garland-wrap">
+        <div class="video-frame" id="video-frame">
+          <iframe
+            src="https://www.youtube.com/embed/JfQTgK0k8XE?autoplay=1&mute=1"
+            title="UW Cherry Blossoms Live Camera, Quad"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen>
+          </iframe>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── HISTORY ── -->
+  <section id="sec-history">
+
+    <!-- Facts ticker -->
+    <div class="facts-ticker" id="facts-ticker">
+      <div>
+        <div class="fact-text" id="fact-text"></div>
+        <div class="fact-nav" id="fact-nav"></div>
+      </div>
+    </div>
+    <span class="section-tag">The Trees</span>
+    <h2 class="section-heading">A Century of Blossoms</h2>
+    <p class="history-lead">
+      Thirty Yoshino cherry trees line the UW Quad, a living gift whose roots
+      reach back to a diplomatic gesture, a world war, and decades of patient
+      stewardship by the university community.
+    </p>
+    <div class="history-grid">
+
+      <div class="history-card">
+        <div class="history-card-year">1939</div>
+        <div class="history-card-title">The Original Planting</div>
+        <p class="history-card-text">
+          Thirty Yoshino cherry trees (<em>Prunus × yedoensis</em>) were planted
+          around the Liberal Arts Quadrangle in 1939, a gift facilitated through
+          the university's growing ties with Japan. The variety, the same that
+          lines the Tidal Basin in Washington D.C., was chosen for its
+          spectacular single-petal white-to-blush blooms and vigorous growth in
+          the Pacific Northwest climate.
+        </p>
+      </div>
+
+      <div class="history-card">
+        <div class="history-card-year">1942 – 1945</div>
+        <div class="history-card-title">War and Silence</div>
+        <p class="history-card-text">
+          Following the attack on Pearl Harbor and the forced internment of
+          Japanese Americans, the trees became a quiet symbol of tension on
+          campus. University staff continued to care for them through the war
+          years, a small act of preservation during an era of profound loss for
+          the Japanese American community, many of whom were UW students and
+          faculty.
+        </p>
+      </div>
+
+      <div class="history-card">
+        <div class="history-card-year">The Tree</div>
+        <div class="history-card-title">Yoshino Cherry: <em>Prunus × yedoensis</em></div>
+        <p class="history-card-text">
+          The Yoshino is a hybrid cherry believed to have originated in Tokyo in
+          the late 19th century. Its blossoms emerge before the leaves, creating
+          a pure canopy of white and pale pink against bare branches. Each flower
+          has five petals and a faint almond fragrance. At peak bloom, the 30
+          UW trees produce an estimated 7–8 million individual flowers.
+        </p>
+        <p class="history-card-text">
+          The trees are now over 85 years old, well past the typical 50-year
+          lifespan for urban cherries, and require careful ongoing maintenance
+          to remain healthy.
+        </p>
+      </div>
+
+      <div class="history-card">
+        <div class="history-card-year">Renewal</div>
+        <div class="history-card-title">Grafting the Next Generation</div>
+        <p class="history-card-text">
+          To preserve the original genetic stock, UW horticulturalists have
+          propagated cuttings from the Quad trees through a grafting program.
+          Young trees grown from these clippings serve as insurance against
+          disease or storm damage, ensuring that future generations of Huskies
+          will walk under the same blossoms, genetically identical to those
+          planted in 1939.
+        </p>
+      </div>
+
+      <div class="history-card wide">
+        <div class="history-card-year">Bloom Science</div>
+        <div class="history-card-title">Why March? The Phenology of Sakura</div>
+        <p class="history-card-text">
+          Cherry blossom timing is driven by temperature accumulation over winter
+          and early spring. The trees require a period of cold dormancy (chilling
+          hours below 45°F) followed by warm spring days. Researchers use
+          degree-day models to track heat accumulation from a base temperature,
+          predicting bloom onset when a threshold is crossed. Seattle's maritime
+          climate (mild winters, cool springs) consistently places UW peak
+          bloom in the third week of March, though warming trends have gradually
+          shifted the average earlier over the past two decades.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div>Data sourced from UW cherry blossom records &nbsp;·&nbsp; <strong>Yoshino Prunus × yedoensis</strong>, UW Quad, Seattle WA</div>
+  <div style="margin-top:0.4rem;">Built with 🌸 for Husky fans everywhere</div>
+</footer>
+
+<!-- ============================================================ SCRIPTS -->
+<script>
+(function () {
+  'use strict';
+
+  // ── HISTORICAL DATA ──────────────────────────────────────────────────
+  const history = [
+    { year: 2015, month: 3, day: 12 },
+    { year: 2016, month: 3, day: 18 },
+    { year: 2017, month: 3, day: 24 },
+    { year: 2018, month: 3, day: 25 },
+    { year: 2019, month: 3, day: 20 },
+    { year: 2020, month: 3, day: 15 },
+    { year: 2021, month: 3, day: 17 },
+    { year: 2022, month: 3, day: 22 },
+    { year: 2023, month: 3, day: 14 },
+    { year: 2024, month: 3, day: 18 },
+  ];
+
+  const PREDICT_YEAR = 2026;
+  const MONTH_NAMES  = ['','January','February','March','April','May','June',
+                         'July','August','September','October','November','December'];
+
+  function isLeap(y) {
+    return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  }
+
+  function daysInMonth(y) {
+    return [0, 31, isLeap(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  }
+
+  function toDoy(year, month, day) {
+    const dim = daysInMonth(year);
+    let d = day;
+    for (let m = 1; m < month; m++) d += dim[m];
+    return d;
+  }
+
+  function fromDoy(year, doy) {
+    const dim = daysInMonth(year);
+    let month = 1;
+    while (doy > dim[month]) { doy -= dim[month]; month++; }
+    return { month, day: doy };
+  }
+
+  // ── COMPUTE PREDICTION ──────────────────────────────────────────────
+  const avgDoy     = history.reduce((s, e) => s + toDoy(e.year, e.month, e.day), 0) / history.length;
+  const predictDoy = Math.round(avgDoy);
+  const predicted  = fromDoy(PREDICT_YEAR, predictDoy);
+
+  // ── COUNTDOWN ───────────────────────────────────────────────────────
+  const today    = new Date();
+  const peakDate = new Date(PREDICT_YEAR, predicted.month - 1, predicted.day);
+  const diffMs   = peakDate.setHours(12) - today.setHours(12);
+  const diffDays = Math.round(diffMs / 86400000);
+  const absDiff  = Math.abs(diffDays);
+
+  document.getElementById('pred-date').textContent =
+    `${MONTH_NAMES[predicted.month]} ${predicted.day}, ${PREDICT_YEAR}`;
+
+  const cdEl   = document.getElementById('pred-countdown');
+  const noteEl = document.getElementById('pred-note');
+
+  if (absDiff <= 5) {
+    cdEl.textContent   = absDiff === 0 ? 'Today!' : `${absDiff} day${absDiff !== 1 ? 's' : ''}`;
+    noteEl.textContent = '✿ Peak bloom may be passing!';
+  } else if (diffDays > 0) {
+    cdEl.textContent   = `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+    noteEl.textContent = 'until peak bloom';
+  } else {
+    cdEl.textContent   = `${absDiff} day${absDiff !== 1 ? 's' : ''}`;
+    noteEl.textContent = 'since peak bloom';
+  }
+
+  // Gaussian probability: σ = 5 days, 100% at peak
+  const bloomProb = Math.max(0, Math.round(100 * Math.exp(-0.5 * Math.pow(diffDays / 5, 2))));
+  document.getElementById('gauge-pct-label').textContent = `${bloomProb}%`;
+
+  setTimeout(() => {
+    document.getElementById('gauge-fill').style.width = bloomProb + '%';
+  }, 700);
+
+  // ── PETALS ──────────────────────────────────────────────────────────
+  const PETAL_SVG = `<svg width="18" height="22" viewBox="0 0 18 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M9 21C9 21 1 15.5 1 8.5C1 4.36 4.69 1 9 1C13.31 1 17 4.36 17 8.5C17 15.5 9 21 9 21Z"
+          fill="currentColor" opacity="0.85"/>
+  </svg>`;
+
+  const petalColors = ['#d4728a','#f2b8c6','#e57899','#c05878','#f06292','#ba6882'];
+  const hero = document.getElementById('hero');
+
+  for (let i = 0; i < 22; i++) {
+    const el      = document.createElement('div');
+    el.className  = 'petal';
+    el.innerHTML  = PETAL_SVG;
+
+    const left     = Math.random() * 100;
+    const size     = 0.6 + Math.random() * 1.4;
+    const duration = 7 + Math.random() * 11;
+    const delay    = -(Math.random() * duration);
+    const drift    = (Math.random() - 0.5) * 220;
+    const spin     = 360 + Math.random() * 540;
+    const color    = petalColors[i % petalColors.length];
+
+    el.style.cssText = [
+      `left: ${left}%`,
+      `width: ${size * 18}px`,
+      `color: ${color}`,
+      `animation-name: petal-fall`,
+      `animation-duration: ${duration}s`,
+      `animation-delay: ${delay}s`,
+      `--drift: ${drift}px`,
+      `--spin: ${spin}deg`,
+    ].join(';');
+
+    hero.appendChild(el);
+  }
+
+  // ── TIMELINE GRID ────────────────────────────────────────────────────
+  const YEAR_NOTES = {
+    2015: 'Earliest in the dataset. A warm February accelerated bud break ahead of schedule.',
+    2016: 'Classic Seattle spring: mild and overcast through mid-March.',
+    2017: 'Late cold snap delayed peak until the final week of March.',
+    2018: 'One of the latest on record. A cold, wet March held the buds back.',
+    2019: 'Near-average year with perfect conditions for the Cherry Blossom Festival.',
+    2020: 'Peak arrived during early COVID-19 closures. The Quad bloomed in silence.',
+    2021: 'UW reopened cautiously. Socially-distanced viewing under the canopy.',
+    2022: 'A warm late February pushed bloom into the third week of March.',
+    2023: 'One of the warmest winters on record. Among the earliest blooms since 2015.',
+    2024: 'Near-average timing. An estimated 8 million blossoms across 30 trees.',
+  };
+
+  (function buildTimeline() {
+    const grid = document.getElementById('tl-grid');
+    const MAR_START = 10, MAR_END = 27, RANGE = MAR_END - MAR_START;
+
+    const entries = [
+      ...history,
+      { year: PREDICT_YEAR, month: predicted.month, day: predicted.day, isPredict: true },
+    ];
+
+    entries.forEach(e => {
+      const refDoy = toDoy(e.isPredict ? PREDICT_YEAR : e.year, 3, MAR_START);
+      const doy    = toDoy(e.isPredict ? PREDICT_YEAR : e.year, e.month, e.day);
+      const barPct = Math.max(0, Math.min(100, ((doy - refDoy) / RANGE) * 100));
+
+      const card = document.createElement('div');
+      card.className = 'tl-card' + (e.isPredict ? ' predict' : '');
+
+      const yearEl = document.createElement('div');
+      yearEl.className = 'tl-card-year';
+      yearEl.textContent = e.year;
+
+      const tagEl = document.createElement('div');
+      tagEl.className = 'tl-card-tag';
+      tagEl.textContent = e.isPredict ? 'Predicted' : 'Recorded';
+
+      const blossomEl = document.createElement('span');
+      blossomEl.className = 'tl-card-blossom';
+      blossomEl.textContent = e.isPredict ? '✿' : '✿';
+
+      const dateEl = document.createElement('div');
+      dateEl.className = 'tl-card-date';
+      dateEl.textContent = `Mar ${e.day}`;
+
+      const trackEl = document.createElement('div');
+      trackEl.className = 'tl-card-bar-track';
+      const fillEl = document.createElement('div');
+      fillEl.className = 'tl-card-bar-fill';
+      trackEl.appendChild(fillEl);
+
+      const noteEl = document.createElement('div');
+      noteEl.className = 'tl-card-note';
+      noteEl.textContent = e.isPredict
+        ? `Based on 10-year average. Predicted peak: ${MONTH_NAMES[e.month]} ${e.day}, ${e.year}.`
+        : (YEAR_NOTES[e.year] || '');
+
+      card.append(yearEl, tagEl, blossomEl, dateEl, trackEl, noteEl);
+      grid.appendChild(card);
+
+      // Animate bar after paint
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        fillEl.style.width = barPct + '%';
+      }));
+
+      // Toggle note on click
+      card.addEventListener('click', () => card.classList.toggle('open'));
+    });
+  })();
+
+  // ── GARLAND ─────────────────────────────────────────────────────────
+  function buildGarland() {
+    const wrap  = document.getElementById('garland-wrap');
+    const frame = document.getElementById('video-frame');
+    const vw    = frame.offsetWidth;
+    const vh    = frame.offsetHeight;
+    const pad   = 52;            // matches CSS padding
+    const N     = 30;
+    const flowers = ['✿', '❀', '✾', '❁', '🌸'];
+    const colors  = ['#d4728a', '#f2b8c6', '#e57899', '#c05878', '#ce93d8'];
+
+    const perimeter = 2 * (vw + vh);
+
+    for (let i = 0; i < N; i++) {
+      let t = (i / N) * perimeter;
+      let x, y, rot;
+
+      if (t < vw) {
+        x = t; y = 0; rot = 0;
+      } else if (t < vw + vh) {
+        x = vw; y = t - vw; rot = 90;
+      } else if (t < 2 * vw + vh) {
+        x = vw - (t - vw - vh); y = vh; rot = 180;
+      } else {
+        x = 0; y = vh - (t - 2 * vw - vh); rot = 270;
+      }
+
+      const span = document.createElement('span');
+      span.className = 'g-flower';
+      span.textContent = flowers[i % flowers.length];
+      span.style.color = colors[i % colors.length];
+
+      const swayDur   = (2 + Math.random() * 2).toFixed(2);
+      const swayDelay = (Math.random() * 2).toFixed(2);
+      const baseRot   = `rotate(${rot}deg)`;
+
+      span.style.cssText += [
+        `left: ${pad + x - 11}px`,
+        `top:  ${pad + y - 11}px`,
+        `--base-rot: ${baseRot}`,
+        `animation-duration: ${swayDur}s`,
+        `animation-delay: -${swayDelay}s`,
+        `font-size: ${1.1 + Math.random() * 0.7}rem`,
+      ].join(';');
+
+      wrap.appendChild(span);
+    }
+  }
+
+  window.addEventListener('load', buildGarland);
+
+  // ── BLOOM STAGE BAR ─────────────────────────────────────────────────
+  // diffDays > 0 = before peak, < 0 = after peak
+  function getStageIndex(d) {
+    if (d > 20)  return 0; // dormant/budding – far out
+    if (d > 10)  return 1; // budding
+    if (d > 3)   return 2; // early bloom
+    if (d >= -5) return 3; // peak
+    return 4;              // petal fall
+  }
+
+  const activeStage = getStageIndex(diffDays);
+  document.querySelectorAll('.stage').forEach(el => {
+    if (parseInt(el.dataset.stage) === activeStage) el.classList.add('active');
+  });
+
+  // ── TEMPERATURE SLIDER ───────────────────────────────────────────────
+  // ~3 days earlier per +1°F warmer (empirical rule of thumb)
+  const DAYS_PER_DEG_F = 3;
+  const tempRange  = document.getElementById('temp-range');
+  const tempDisplay = document.getElementById('temp-display');
+  const tempResult  = document.getElementById('temp-result');
+
+  tempRange.addEventListener('input', () => {
+    const offset = parseFloat(tempRange.value);
+    const sign   = offset >= 0 ? '+' : '';
+    tempDisplay.textContent = `${sign}${offset} °F`;
+
+    const adjDoy  = predictDoy - Math.round(offset * DAYS_PER_DEG_F);
+    const adjDate = fromDoy(PREDICT_YEAR, Math.max(50, Math.min(120, adjDoy)));
+    const adjDiff = adjDoy - predictDoy;
+    const direction = adjDiff < 0 ? 'earlier' : adjDiff > 0 ? 'later' : 'unchanged';
+
+    if (offset === 0) {
+      tempResult.textContent = 'Drag the slider to see how temperature shifts the predicted peak date.';
+    } else {
+      const absDays = Math.abs(Math.round(offset * DAYS_PER_DEG_F));
+      tempResult.innerHTML = `At ${sign}${offset}°F from average, peak moves <strong>${absDays} day${absDays !== 1 ? 's' : ''} ${direction}</strong> — estimated <strong>${MONTH_NAMES[adjDate.month]} ${adjDate.day}, ${PREDICT_YEAR}</strong>.`;
+    }
+  });
+
+
+  // ── CHERRY BLOSSOM FACTS TICKER ──────────────────────────────────────
+  const FACTS = [
+    'The 30 Yoshino trees in the UW Quad produce an estimated 7–8 million individual blossoms at peak bloom.',
+    'Yoshino cherries bloom before their leaves appear, creating a pure canopy of white and pink against bare branches.',
+    '"Mono no aware", the Japanese concept of the bittersweet awareness of impermanence, is embodied by the cherry blossom.',
+    'A single Yoshino cherry petal typically falls within 4–7 days of opening, depending on wind and rain.',
+    'The UW trees are over 85 years old, well past the typical 50-year urban lifespan for cherry trees.',
+    'Cherry blossom viewing ("hanami") dates to at least the 8th century in Japan, originally observing wild mountain cherries.',
+    'At peak bloom, the Quad\'s canopy filters sunlight into a warm pink glow, a phenomenon photographers call "sakura light."',
+    'The trees were propagated via grafting to preserve the original 1939 genetic stock for future generations.',
+  ];
+
+  let factIndex = 0;
+  let factTimer;
+  const factTextEl = document.getElementById('fact-text');
+  const factNavEl  = document.getElementById('fact-nav');
+
+  function renderFact(idx, direction = 1) {
+    factTextEl.classList.add('fade-out');
+    setTimeout(() => {
+      factTextEl.textContent = FACTS[idx];
+      factTextEl.classList.remove('fade-out');
+      factTextEl.classList.add('fade-in');
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        factTextEl.classList.remove('fade-in');
+      }));
+      document.querySelectorAll('.fact-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === idx);
+      });
+    }, 500);
+  }
+
+  function goFact(idx) {
+    factIndex = (idx + FACTS.length) % FACTS.length;
+    renderFact(factIndex);
+    clearInterval(factTimer);
+    factTimer = setInterval(() => { factIndex = (factIndex + 1) % FACTS.length; renderFact(factIndex); }, 5000);
+  }
+
+  FACTS.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'fact-dot' + (i === 0 ? ' active' : '');
+    dot.addEventListener('click', () => goFact(i));
+    factNavEl.appendChild(dot);
+  });
+
+  factTextEl.textContent = FACTS[0];
+  factTimer = setInterval(() => { factIndex = (factIndex + 1) % FACTS.length; renderFact(factIndex); }, 5000);
+
+
+  // ── CURSOR PETAL TRAIL ───────────────────────────────────────────────
+  const trailPetals = ['✿','❀','✾','❁'];
+  const trailColors = ['#d4728a','#f2b8c6','#e57899','#ce93d8','#c05878'];
+  let lastTrail = 0;
+  let trailActive = true;
+
+  document.addEventListener('mousemove', e => {
+    if (!trailActive) return;
+    const now = Date.now();
+    if (now - lastTrail < 80) return;
+    lastTrail = now;
+
+    const span = document.createElement('span');
+    span.className = 'trail-petal';
+    span.textContent = trailPetals[Math.floor(Math.random() * trailPetals.length)];
+    span.style.color = trailColors[Math.floor(Math.random() * trailColors.length)];
+    span.style.left  = (e.clientX - 8) + 'px';
+    span.style.top   = (e.clientY - 8) + 'px';
+    span.style.setProperty('--tx', (Math.random() - 0.5) * 60 + 'px');
+    span.style.setProperty('--tr', (Math.random() > 0.5 ? '' : '-') + Math.round(120 + Math.random() * 240) + 'deg');
+    span.style.fontSize = (0.6 + Math.random() * 0.5) + 'rem';
+    document.body.appendChild(span);
+    span.addEventListener('animationend', () => span.remove());
+  });
+
+  // ── HERO CLICK BURST ─────────────────────────────────────────────────
+  hero.addEventListener('click', e => {
+    const burstPetals = ['✿','❀','✾','❁','🌸'];
+    const burstColors = ['#d4728a','#f2b8c6','#e57899','#c05878','#f06292'];
+    for (let i = 0; i < 12; i++) {
+      const span = document.createElement('span');
+      span.className = 'burst-petal';
+      span.textContent = burstPetals[i % burstPetals.length];
+      span.style.color = burstColors[i % burstColors.length];
+      const angle = (i / 12) * 2 * Math.PI + (Math.random() - 0.5) * 0.8;
+      const dist  = 60 + Math.random() * 100;
+      span.style.left = (e.clientX - 10) + 'px';
+      span.style.top  = (e.clientY - 10) + 'px';
+      span.style.setProperty('--bx', Math.cos(angle) * dist + 'px');
+      span.style.setProperty('--by', Math.sin(angle) * dist - 30 + 'px');
+      span.style.setProperty('--br', Math.round(Math.random() * 720 - 360) + 'deg');
+      span.style.animationDuration = (0.7 + Math.random() * 0.4) + 's';
+      span.style.fontSize = (0.8 + Math.random() * 0.7) + 'rem';
+      document.body.appendChild(span);
+      span.addEventListener('animationend', () => span.remove());
+    }
+  });
+
+  // ── PETAL CATCH GAME ─────────────────────────────────────────────────
+  let catchCount = 0;
+  const catchCountEl = document.getElementById('catch-count');
+  const catchScoreEl = document.getElementById('catch-score');
+
+  // Make hero petals catchable after they're created
+  // We intercept petal creation by patching after the petal loop completes
+  // Instead, attach delegated click handler on hero for .petal elements
+  hero.addEventListener('click', e => {
+    const petal = e.target.closest('.petal');
+    if (!petal) return;
+    e.stopPropagation(); // don't also trigger burst
+
+    catchCount++;
+    catchCountEl.textContent = catchCount;
+    catchScoreEl.classList.remove('pop');
+    void catchScoreEl.offsetWidth; // reflow to restart animation
+    catchScoreEl.classList.add('pop');
+
+    // Caught! flash and remove
+    petal.style.transition = 'opacity 0.2s, transform 0.2s';
+    petal.style.opacity = '0';
+    petal.style.transform += ' scale(2)';
+    setTimeout(() => petal.remove(), 250);
+  }, true);
+
+  // Make petals show pointer on hover
+  hero.querySelectorAll('.petal').forEach(p => p.classList.add('catchable'));
+
+  // ── INTERACTIVE CHERRY TREE ──────────────────────────────────────────
+  // Blossom zones are generated procedurally to match the 700x520 tree canopy
+  const BLOSSOM_ZONES = [];
+  // Explicit tip clusters
+  const TIP_ZONES = [
+    // far left branch tips and droops
+    { cx: 8,   cy: 280, r: 42, n: 22 }, { cx: -25, cy: 240, r: 32, n: 14 },
+    { cx: 60,  cy: 296, r: 35, n: 16 }, { cx: 105, cy: 306, r: 32, n: 14 },
+    // mid left
+    { cx: 68,  cy: 198, r: 40, n: 20 }, { cx: 12,  cy: 158, r: 34, n: 15 },
+    { cx: 74,  cy: 176, r: 28, n: 12 }, { cx: 110, cy: 222, r: 26, n: 11 },
+    // upper left
+    { cx: 122, cy: 168, r: 38, n: 18 }, { cx: 76,  cy: 125, r: 30, n: 13 },
+    { cx: 50,  cy: 88,  r: 26, n: 11 }, { cx: 155, cy: 192, r: 26, n: 11 },
+    // center left up
+    { cx: 313, cy: 166, r: 32, n: 14 }, { cx: 322, cy: 126, r: 26, n: 11 },
+    { cx: 295, cy: 110, r: 22, n: 9  }, { cx: 299, cy: 110, r: 22, n: 9  },
+    // top center
+    { cx: 351, cy: 136, r: 44, n: 22 }, { cx: 318, cy: 154, r: 32, n: 14 },
+    { cx: 384, cy: 154, r: 32, n: 14 }, { cx: 327, cy: 112, r: 28, n: 12 },
+    { cx: 375, cy: 112, r: 28, n: 12 }, { cx: 337, cy: 82,  r: 24, n: 10 },
+    { cx: 365, cy: 82,  r: 24, n: 10 },
+    // upper right
+    { cx: 578, cy: 168, r: 38, n: 18 }, { cx: 624, cy: 125, r: 30, n: 13 },
+    { cx: 646, cy: 88,  r: 26, n: 11 }, { cx: 545, cy: 192, r: 26, n: 11 },
+    // center right up
+    { cx: 375, cy: 166, r: 32, n: 14 }, { cx: 374, cy: 126, r: 26, n: 11 },
+    { cx: 393, cy: 110, r: 22, n: 9  }, { cx: 403, cy: 110, r: 22, n: 9  },
+    // mid right
+    { cx: 632, cy: 198, r: 40, n: 20 }, { cx: 688, cy: 158, r: 34, n: 15 },
+    { cx: 626, cy: 176, r: 28, n: 12 }, { cx: 590, cy: 222, r: 26, n: 11 },
+    // far right
+    { cx: 692, cy: 280, r: 42, n: 22 }, { cx: 725, cy: 240, r: 32, n: 14 },
+    { cx: 640, cy: 296, r: 35, n: 16 }, { cx: 595, cy: 306, r: 32, n: 14 },
+    // along branches for density
+    { cx: 228, cy: 346, r: 24, n: 10 }, { cx: 145, cy: 318, r: 22, n: 9  },
+    { cx: 245, cy: 312, r: 22, n: 9  }, { cx: 183, cy: 218, r: 22, n: 9  },
+    { cx: 265, cy: 289, r: 20, n: 8  }, { cx: 340, cy: 284, r: 24, n: 10 },
+    { cx: 351, cy: 200, r: 26, n: 11 }, { cx: 435, cy: 289, r: 20, n: 8  },
+    { cx: 455, cy: 312, r: 22, n: 9  }, { cx: 517, cy: 218, r: 22, n: 9  },
+    { cx: 472, cy: 346, r: 24, n: 10 }, { cx: 555, cy: 318, r: 22, n: 9  },
+  ];
+  TIP_ZONES.forEach(z => BLOSSOM_ZONES.push(z));
+
+  // Procedural canopy fill — fills the entire elliptical canopy area
+  const CANOPY = { cx: 351, cy: 218, rx: 350, ry: 175 };
+  for (let gx = -10; gx <= 720; gx += 38) {
+    for (let gy = 65; gy <= 345; gy += 30) {
+      const dx = (gx - CANOPY.cx) / CANOPY.rx;
+      const dy = (gy - CANOPY.cy) / CANOPY.ry;
+      const inside = dx*dx + dy*dy;
+      if (inside <= 1.05) {
+        const density = Math.max(0, 1 - inside);
+        BLOSSOM_ZONES.push({
+          cx: gx + (Math.random()-0.5)*14,
+          cy: gy + (Math.random()-0.5)*12,
+          r:  10 + density * 12,
+          n:  Math.max(2, Math.round(density * 7 + 1)),
+        });
+      }
+    }
+  }
+
+  const BLOSSOM_FILLS = ['#f2b8c6','#f5c4d0','#e8a0b8','#fce4ec','#f0aac0','#ec96b4','#f8d0dd','#e89cb2'];
+  const SVGNS         = 'http://www.w3.org/2000/svg';
+
+  function makeSVGBlossom(cx, cy, size, angle, fill) {
+    const g = document.createElementNS(SVGNS, 'g');
+    g.setAttribute('transform', `translate(${cx.toFixed(1)},${cy.toFixed(1)}) rotate(${angle.toFixed(1)})`);
+    g.setAttribute('filter', 'url(#blossom-glow)');
+    for (let p = 0; p < 5; p++) {
+      const el = document.createElementNS(SVGNS, 'ellipse');
+      el.setAttribute('cx',  0);
+      el.setAttribute('cy',  -(size * 0.65).toFixed(2));
+      el.setAttribute('rx',  (size * 0.44).toFixed(2));
+      el.setAttribute('ry',  (size * 0.72).toFixed(2));
+      el.setAttribute('fill', fill);
+      el.setAttribute('opacity', (0.78 + Math.random() * 0.22).toFixed(2));
+      el.setAttribute('transform', `rotate(${p * 72})`);
+      g.appendChild(el);
+    }
+    const dot = document.createElementNS(SVGNS, 'circle');
+    dot.setAttribute('cx', 0); dot.setAttribute('cy', 0);
+    dot.setAttribute('r',  (size * 0.27).toFixed(2));
+    dot.setAttribute('fill', '#fffbf5');
+    g.appendChild(dot);
+    return g;
+  }
+
+  (function buildTreeBlossoms() {
+    const group = document.getElementById('tree-blossoms');
+    BLOSSOM_ZONES.forEach(zone => {
+      for (let i = 0; i < zone.n; i++) {
+        const a    = Math.random() * Math.PI * 2;
+        const dist = Math.sqrt(Math.random()) * zone.r; // sqrt for uniform fill
+        const x    = zone.cx + Math.cos(a) * dist;
+        const y    = zone.cy + Math.sin(a) * dist;
+        const size = 4.5 + Math.random() * 5.5;
+        const rot  = Math.random() * 360;
+        const fill = BLOSSOM_FILLS[Math.floor(Math.random() * BLOSSOM_FILLS.length)];
+        group.appendChild(makeSVGBlossom(x, y, size, rot, fill));
+      }
+    });
+  })();
+
+  // Petal rain
+  const RAIN_CHARS  = ['✿','❀','✾','❁'];
+  const RAIN_COLORS = ['#d4728a','#f2b8c6','#e57899','#c05878','#f06292','#ba6882','#e8a0b8'];
+  let treeClickTotal = 0;
+  let treeShaking    = false;
+
+  const treeStage       = document.getElementById('tree-stage');
+  const cherryTreeEl    = document.getElementById('cherry-tree');
+  const treeInstEl      = document.getElementById('tree-instruction');
+  const treeCountEl     = document.getElementById('tree-click-count');
+
+  function rainFromTree() {
+    if (treeShaking) return;
+    treeShaking = true;
+    cherryTreeEl.classList.add('tree-shaking');
+    setTimeout(() => { cherryTreeEl.classList.remove('tree-shaking'); treeShaking = false; }, 620);
+
+    const rect   = treeStage.getBoundingClientRect();
+    const startY = rect.top + rect.height * 0.18;
+    const count  = 75 + Math.floor(Math.random() * 25);
+
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const span   = document.createElement('span');
+        span.className = 'rain-petal';
+        span.textContent = RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)];
+        span.style.color = RAIN_COLORS[Math.floor(Math.random() * RAIN_COLORS.length)];
+
+        const x       = rect.left - 60 + Math.random() * (rect.width + 120);
+        const ryStart = startY + (Math.random() - 0.4) * rect.height * 0.5;
+        const rxDrift = (Math.random() - 0.5) * 340;
+        const spin    = `${Math.random() > 0.5 ? '' : '-'}${(180 + Math.random() * 580).toFixed(0)}deg`;
+        const scale   = 0.55 + Math.random() * 1.05;
+        const dur     = 2.8 + Math.random() * 3;
+        const fs      = 0.75 + Math.random() * 0.95;
+
+        span.style.cssText += [
+          `left:${x.toFixed(0)}px`, `top:0px`,
+          `font-size:${fs}rem`,
+          `animation-duration:${dur.toFixed(2)}s`,
+          `animation-delay:${(Math.random()*0.5).toFixed(2)}s`,
+          `--ry-start:${ryStart.toFixed(0)}px`,
+          `--rx-drift:${rxDrift.toFixed(0)}px`,
+          `--r-spin:${spin}`,
+          `--rscale:${scale.toFixed(2)}`,
+        ].join(';');
+
+        span.style.pointerEvents = 'auto';
+        span.style.cursor = 'pointer';
+        span.addEventListener('click', () => {
+          catchCount++;
+          catchCountEl.textContent = catchCount;
+          catchScoreEl.classList.remove('pop');
+          void catchScoreEl.offsetWidth;
+          catchScoreEl.classList.add('pop');
+          span.remove();
+        });
+        document.body.appendChild(span);
+        span.addEventListener('animationend', () => span.remove());
+      }, i * 16);
+    }
+
+    treeClickTotal++;
+    treeInstEl.style.opacity = '0';
+    treeCountEl.textContent = `${treeClickTotal} shake${treeClickTotal > 1 ? 's' : ''}, ${treeClickTotal * 88 | 0}+ petals fallen`;
+  }
+
+  treeStage.addEventListener('click', rainFromTree);
+
+  // ── SCROLL REVEAL ───────────────────────────────────────────────────
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) e.target.classList.add('visible');
+    });
+  }, { threshold: 0.08 });
+
+  document.querySelectorAll('section').forEach(s => io.observe(s));
+
+})();
+</script>
+</body>
+</html>
